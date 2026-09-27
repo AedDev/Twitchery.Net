@@ -19,7 +19,6 @@ public interface ITwitchery
 
     internal EventSubClient EventSubClient { get; set; }
 
-    public AdsIndex Ads { get; }
     public UsersIndex Users { get; }
     public StreamsIndex Streams { get; }
     public ChannelsIndex Channels { get; }

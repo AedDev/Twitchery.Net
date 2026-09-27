@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TwitcheryNet.Attributes;
 using TwitcheryNet.Models.Helix;
 using TwitcheryNet.Models.Helix.Channels;
+using TwitcheryNet.Models.Helix.Channels.Ads;
 using TwitcheryNet.Models.Helix.Users;
 using TwitcheryNet.Services.Interfaces;
 
@@ -11,22 +12,22 @@ namespace TwitcheryNet.Models.Indexer;
 public class ChannelsIndex
 {
     private ITwitchery Twitch { get; }
-    
+
     [ActivatorUtilitiesConstructor]
     public ChannelsIndex(ITwitchery api)
     {
         Twitch = api;
     }
-    
+
     public Channel? this[string broadcasterId] => GetChannelInformationAsync(broadcasterId).Result;
-    
+
     [ApiRoute("GET", "channels")]
     [RequiresToken(TokenType.Both)]
     public async Task<GetChannelResponse?> GetChannelInformationAsync(GetChannelRequest request, CancellationToken cancellationToken = default)
     {
         return await Twitch.GetTwitchApiAsync<GetChannelRequest, GetChannelResponse>(request, typeof(ChannelsIndex), cancellationToken);
     }
-    
+
     public async Task<Channel?> GetChannelInformationAsync(string broadcasterId, CancellationToken cancellationToken = default)
     {
         var channels = await GetChannelInformationAsync(new GetChannelRequest(broadcasterId), cancellationToken);
@@ -39,7 +40,7 @@ public class ChannelsIndex
 
         return channel;
     }
-    
+
     public async Task<Channel?> GetChannelInformationAsync(User user, CancellationToken cancellationToken = default)
     {
         var channels = await GetChannelInformationAsync(new GetChannelRequest(user.Id), cancellationToken);
@@ -52,7 +53,7 @@ public class ChannelsIndex
 
         return channel;
     }
-    
+
     [ApiRules(RouteRules.RequiresOwner | RouteRules.RequiresModerator)]
     [ApiRoute("GET", "channels/followers", "moderator:read:followers")]
     [RequiresToken(TokenType.UserAccess)]
@@ -60,7 +61,7 @@ public class ChannelsIndex
     {
         return await Twitch.GetTwitchApiAsync<GetChannelFollowersRequest, GetChannelFollowersResponse>(request, typeof(ChannelsIndex), cancellationToken);
     }
-    
+
     [ApiRules(RouteRules.RequiresOwner | RouteRules.RequiresModerator)]
     [ApiRoute("GET", "channels/followers", "moderator:read:followers")]
     [RequiresToken(TokenType.UserAccess)]
@@ -68,13 +69,13 @@ public class ChannelsIndex
     {
         return await Twitch.GetTwitchApiAllAsync<GetChannelFollowersRequest, GetChannelFollowersResponse, GetAllChannelFollowersResponse>(request, typeof(ChannelsIndex), cancellationToken);
     }
-    
+
     public async Task<List<Follower>> GetChannelFollowersAsync(string broadcasterId, CancellationToken cancellationToken = default)
     {
         var followers = await GetChannelFollowersAsync(new GetChannelFollowersRequest(broadcasterId), cancellationToken);
         return followers?.Followers ?? [];
     }
-    
+
     public async IAsyncEnumerable<Follower> GetChannelFollowersAsync(Channel channel, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         string? cursor = null;
@@ -84,9 +85,9 @@ public class ChannelsIndex
             {
                 After = cursor
             };
-            
+
             var followers = await GetChannelFollowersAsync(request, cancellationToken);
-            
+
             if (followers is null)
             {
                 yield break;
@@ -94,22 +95,61 @@ public class ChannelsIndex
 
             foreach (var follower in followers.Followers)
                 yield return follower;
-            
+
             cursor = followers.Pagination.Cursor;
         } while (!cancellationToken.IsCancellationRequested && !string.IsNullOrEmpty(cursor));
     }
-    
+
     public async Task<List<Follower>> GetAllChannelFollowersAsync(string broadcasterId, CancellationToken cancellationToken = default)
     {
         var followers = await GetAllChannelFollowersAsync(new GetChannelFollowersRequest(broadcasterId), cancellationToken);
         return followers.Followers;
     }
-    
+
+#warning Requires Testing
+    [ApiRoute("POST", "channels/commercial", "channel:edit:commercial")]
+    [RequiresToken(TokenType.Both)]
+    public async Task<StartCommercialResponse?> StartCommercialAsync(StartCommercialRequestBody requestBody, CancellationToken cancellationToken = default)
+    {
+        return await Twitch.PostTwitchApiAsync<StartCommercialRequestBody, StartCommercialResponse>(requestBody, typeof(ChannelsIndex), cancellationToken);
+    }
+
+    public async Task<StartCommercialResponse?> StartCommercialAsync(string broadcasterId, int length, CancellationToken cancellationToken = default)
+    {
+        return await StartCommercialAsync(new StartCommercialRequestBody(broadcasterId, length), cancellationToken);
+    }
+
+#warning Requires Testing
+    [ApiRoute("GET", "channels/ads", "channel:read:ads")]
+    [RequiresToken(TokenType.Both)]
+    public async Task<GetAdScheduleResponse?> GetAdScheduleAsync(GetAdScheduleRequest request, CancellationToken cancellationToken = default)
+    {
+        return await Twitch.GetTwitchApiAsync<GetAdScheduleRequest, GetAdScheduleResponse>(request, typeof(ChannelsIndex), cancellationToken);
+    }
+
+    public async Task<GetAdScheduleResponse?> GetAdScheduleAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    {
+        return await GetAdScheduleAsync(new GetAdScheduleRequest(broadcasterId), cancellationToken);
+    }
+
+#warning Requires Testing
+    [ApiRoute("POST", "channels/ads/schedule/snooze", "channel:manage:ads")]
+    [RequiresToken(TokenType.Both)]
+    public async Task<SnoozeNextAdResponse?> SnoozeNextAdAsync(SnoozeNextAdRequestBody requestBody, CancellationToken cancellationToken = default)
+    {
+        return await Twitch.PostTwitchApiAsync<SnoozeNextAdRequestBody, SnoozeNextAdResponse>(requestBody, typeof(ChannelsIndex), cancellationToken);
+    }
+
+    public async Task<SnoozeNextAdResponse?> SnoozeNextAdAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    {
+        return await SnoozeNextAdAsync(new SnoozeNextAdRequestBody(broadcasterId), cancellationToken);
+    }
+
     public Task<bool> IsOwnerAsync(string broadcasterId, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(Twitch.Me?.Channel?.BroadcasterId == broadcasterId);
     }
-    
+
     public Task<bool> IsOwnerAsync(Channel channel, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(Twitch.Me?.Channel?.BroadcasterId == channel.BroadcasterId);
