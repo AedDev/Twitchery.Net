@@ -56,6 +56,7 @@ public class Twitchery : ITwitchery
 
     #region Indexed Properties
 
+    public AdsIndex Ads => new(this);
     public UsersIndex Users => new(this);
     public StreamsIndex Streams => new(this);
     public ChatIndex Chat => new(this);

@@ -11,14 +11,15 @@ public interface ITwitchery
     public string? UserClientId { get; set; }
     public string? UserAccessToken { get; set; }
     public List<string> UserScopes { get; }
-    
+
     public string? AppClientId { get; set; }
     public string? AppClientSecret { get; set; }
     public string? AppAccessToken { get; set; }
     public List<string> AppClientScopes { get; set; }
-    
+
     internal EventSubClient EventSubClient { get; set; }
-    
+
+    public AdsIndex Ads { get; }
     public UsersIndex Users { get; }
     public StreamsIndex Streams { get; }
     public ChannelsIndex Channels { get; }
@@ -33,7 +34,7 @@ public interface ITwitchery
     Task<bool> AppAuthAsync(string clientId, string clientSecret, CancellationToken token = default);
     Task<bool> CheckAppToken();
     Task<bool> CheckUserToken();
-    
+
     Task<TResponse?> GetTwitchApiAsync<TQuery, TResponse>(TQuery? query, Type callerType, CancellationToken token = default,
         [CallerMemberName] string? callerMemberName = null)
         where TQuery : class, IQueryParameters
