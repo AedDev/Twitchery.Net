@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TwitcheryNet.Misc;
 using TwitcheryNet.Net.EventSub.EventArgs.Channel;
 
 namespace TwitcheryNet.Net.EventSub.Handler.Channel;
@@ -9,12 +8,12 @@ public class ChannelSubscribeHandler : INotification
 {
     public string SubscriptionType => "channel.subscribe";
     public string SubscriptionVersion => "1";
-    
-    private ILogger<ChannelSubscribeHandler> Logger { get; } = 
+
+    private ILogger<ChannelSubscribeHandler> Logger { get; } =
         LoggerFactory
             .Create(x => x.AddConsole())
             .CreateLogger<ChannelSubscribeHandler>();
-    
+
     public async Task Handle(EventSubClient client, string json)
     {
         try

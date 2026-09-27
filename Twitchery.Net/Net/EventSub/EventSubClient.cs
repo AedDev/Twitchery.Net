@@ -10,7 +10,6 @@ using TwitcheryNet.Misc;
 using TwitcheryNet.Models.Client;
 using TwitcheryNet.Models.Client.Messages.Welcome;
 using TwitcheryNet.Models.Helix.EventSub.Subscriptions;
-using TwitcheryNet.Net.EventSub.EventArgs;
 using TwitcheryNet.Services.Interfaces;
 
 namespace TwitcheryNet.Net.EventSub;

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using TwitcheryNet.Services.Interfaces;
 
 namespace TwitcheryNet.Extensions;
