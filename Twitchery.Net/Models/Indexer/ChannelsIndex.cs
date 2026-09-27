@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using TwitcheryNet.Attributes;
@@ -65,7 +66,7 @@ public class ChannelsIndex
     [ApiRules(RouteRules.RequiresOwner | RouteRules.RequiresModerator)]
     [ApiRoute("GET", "channels/followers", "moderator:read:followers")]
     [RequiresToken(TokenType.UserAccess)]
-    public async Task<GetAllChannelFollowersResponse> GetAllChannelFollowersAsync(GetChannelFollowersRequest request, CancellationToken cancellationToken = default)
+    public async Task<GetAllChannelFollowersResponse?> GetAllChannelFollowersAsync(GetChannelFollowersRequest request, CancellationToken cancellationToken = default)
     {
         return await Twitch.GetTwitchApiAllAsync<GetChannelFollowersRequest, GetChannelFollowersResponse, GetAllChannelFollowersResponse>(request, typeof(ChannelsIndex), cancellationToken);
     }
@@ -103,7 +104,7 @@ public class ChannelsIndex
     public async Task<List<Follower>> GetAllChannelFollowersAsync(string broadcasterId, CancellationToken cancellationToken = default)
     {
         var followers = await GetAllChannelFollowersAsync(new GetChannelFollowersRequest(broadcasterId), cancellationToken);
-        return followers.Followers;
+        return followers?.Followers ?? [];
     }
 
 #warning Requires Testing
@@ -119,6 +120,13 @@ public class ChannelsIndex
         return await StartCommercialAsync(new StartCommercialRequestBody(broadcasterId, length), cancellationToken);
     }
 
+    public async Task<bool> TryStartCommercialAsync(string broadcasterId, int length, CancellationToken cancellationToken = default)
+    {
+        var result = await StartCommercialAsync(new StartCommercialRequestBody(broadcasterId, length), cancellationToken);
+
+        return result != null;
+    }
+
 #warning Requires Testing
     [ApiRoute("GET", "channels/ads", "channel:read:ads")]
     [RequiresToken(TokenType.Both)]
@@ -132,6 +140,13 @@ public class ChannelsIndex
         return await GetAdScheduleAsync(new GetAdScheduleRequest(broadcasterId), cancellationToken);
     }
 
+    public async Task<List<Schedule>> GetAdSchedulesAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    {
+        var results = await GetAdScheduleAsync(new GetAdScheduleRequest(broadcasterId), cancellationToken);
+
+        return results?.Schedules ?? [];
+    }
+
 #warning Requires Testing
     [ApiRoute("POST", "channels/ads/schedule/snooze", "channel:manage:ads")]
     [RequiresToken(TokenType.Both)]
@@ -143,6 +158,13 @@ public class ChannelsIndex
     public async Task<SnoozeNextAdResponse?> SnoozeNextAdAsync(string broadcasterId, CancellationToken cancellationToken = default)
     {
         return await SnoozeNextAdAsync(new SnoozeNextAdRequestBody(broadcasterId), cancellationToken);
+    }
+
+    public async Task<bool> TrySnoozeNextAdAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    {
+        var result = await SnoozeNextAdAsync(new SnoozeNextAdRequestBody(broadcasterId), cancellationToken);
+
+        return result != null;
     }
 
     public Task<bool> IsOwnerAsync(string broadcasterId, CancellationToken cancellationToken = default)

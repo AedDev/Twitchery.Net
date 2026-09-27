@@ -6,5 +6,5 @@ namespace TwitcheryNet.Models.Helix.Channels.Ads;
 public class GetAdScheduleResponse
 {
     [JsonProperty("data")]
-    public List<Schedule> AdSchedules { get; set; } = [];
+    public List<Schedule> Schedules { get; set; } = [];
 }

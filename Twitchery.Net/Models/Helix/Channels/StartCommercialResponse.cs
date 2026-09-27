@@ -7,5 +7,5 @@ namespace TwitcheryNet.Models.Helix.Channels;
 public class StartCommercialResponse
 {
     [JsonProperty("data")]
-    public List<Channel> ChannelInformations { get; set; } = [];
+    public List<Commercial> CommercialStartInfos { get; set; } = [];
 }
