@@ -22,11 +22,11 @@ public class EventSubClient
     private WebsocketClient Client { get; }
     private Dictionary<string, Func<EventSubClient, string, Task>> Handlers { get; } = new();
     private Dictionary<string, Delegate> Listener { get; } = new();
-    
+
     private string SessionId { get; set; } = string.Empty;
-    
+
     private const string TwitchWebSocketUrl = "wss://eventsub.wss.twitch.tv/ws";
-    
+
     private DateTimeOffset _lastReceived;
 
     public EventSubClient(ITwitchery twitchery)
@@ -37,16 +37,16 @@ public class EventSubClient
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             })
             .CreateLogger<EventSubClient>();
-        
+
         Twitch = twitchery;
         Client = new WebsocketClient(twitchery);
 
         InitializerHandlers();
-        
+
         Client.DataReceived += OnDataReceived;
-        Client.ErrorOccured += OnErrorOccured; 
+        Client.ErrorOccured += OnErrorOccured;
     }
-    
+
     [ActivatorUtilitiesConstructor]
     public EventSubClient(ILogger<EventSubClient> logger, ITwitchery twitchery)
     {
@@ -55,7 +55,7 @@ public class EventSubClient
         Client = new WebsocketClient(twitchery);
 
         InitializerHandlers();
-        
+
         Client.DataReceived += OnDataReceived;
         Client.ErrorOccured += OnErrorOccured;
     }
@@ -69,9 +69,9 @@ public class EventSubClient
             .Select(Activator.CreateInstance)
             .Cast<INotification>()
             .ToList();
-        
+
         Handlers.Clear();
-        
+
         foreach (var handler in handlers)
         {
             Logger.LogDebug("Registering EventSub handler for {SubscriptionType}", handler.SubscriptionType);
@@ -82,18 +82,18 @@ public class EventSubClient
     public Task StartAsync(CancellationToken token = default)
     {
         _lastReceived = DateTimeOffset.MinValue;
-        
+
 #pragma warning disable CS4014
         Client.StartAsync(TwitchWebSocketUrl, token: token);
 #pragma warning restore CS4014
-        
+
         return Task.CompletedTask;
     }
 
     private Task OnErrorOccured(object sender, ErrorOccuredArgs e)
     {
         Logger.LogError(e.Exception, "An error occured while receiving data.");
-        
+
         return Task.CompletedTask;
     }
 
@@ -104,6 +104,11 @@ public class EventSubClient
         WebSocketMessage? msg;
         try
         {
+            if (args.Message == null)
+            {
+                throw new ArgumentException("Arguments message is null", nameof(args));
+            }
+
             msg = JsonConvert.DeserializeObject<WebSocketMessage>(args.Message);
         }
         catch (Exception e)
@@ -123,27 +128,27 @@ public class EventSubClient
             case "session_welcome":
                 await HandleSessionWelcomeAsync(args.Message);
                 break;
-            
+
             case "session_disconnect":
                 await HandleSessionDisconnectAsync(args.Message);
                 break;
-            
+
             case "session_reconnect":
                 await HandleSessionReconnectAsync(args.Message);
                 break;
-            
+
             case "session_keepalive":
                 await HandleSessionKeepaliveAsync(args.Message);
                 break;
-            
+
             case "notification":
                 await HandleNotificationAsync(args.Message);
                 break;
-            
+
             case "revocation":
                 await HandleRevocationAsync(args.Message);
                 break;
-            
+
             default:
                 Logger.LogError("Received invalid WebSocketMessage type: {Type}", msg.Metadata.Type);
                 break;
@@ -206,7 +211,7 @@ public class EventSubClient
     private async Task HandleNotificationAsync(string msg)
     {
         var msgJson = JsonConvert.DeserializeObject<WebSocketMessage>(msg);
-        
+
         if (msgJson is null)
         {
             Logger.LogError("Failed to deserialize WebSocketMessage");
@@ -214,7 +219,7 @@ public class EventSubClient
         }
 
         var subType = msgJson.Metadata.SubscriptionType;
-        
+
         if (Handlers.TryGetValue(subType, out var handler))
         {
             await handler.Invoke(this, msg);
@@ -230,7 +235,7 @@ public class EventSubClient
         Logger.LogDebug("Received Revocation!");
 
         var data = JsonConvert.DeserializeObject<EventSubNotificationData>(msg);
-        
+
         if (data is null)
         {
             Logger.LogError("Failed to deserialize EventSubNotificationData<NotificationSubscription>");
@@ -252,14 +257,14 @@ public class EventSubClient
             Logger.LogWarning("Listener target is null for {SubscriptionType} with Id {SubscriptionId}", subType, subId);
             return;
         }
-        
+
         await SubscribeAsync(currentListener.Target, data.Metadata.SubscriptionType, data.Metadata.SubscriptionVersion, currentListener);
-        
+
         Logger.LogInformation("Re-registered listener for {SubscriptionType} with Id {SubscriptionId}", subType, subId);
-        
+
         Listener.Remove(subId);
     }
-    
+
     public async Task RegisterEventSubAsync(object source, string eventName, Delegate handler)
     {
         ArgumentNullException.ThrowIfNull(source, nameof(source));
@@ -268,23 +273,23 @@ public class EventSubClient
 
         var tSource = source.GetType();
         var tEvent = tSource.GetEvent(eventName);
-        
+
         if (tEvent is null)
         {
             Logger.LogError("Event {EventName} not found in {SourceType}", eventName, tSource);
             return;
         }
-        
+
         if (tEvent.TryGetCustomAttribute<EventSubAttribute>(out var eventSub) is false || eventSub is null)
         {
             return;
         }
-        
+
         MissingTwitchScopeException.ThrowIfMissing(Twitch.UserScopes, eventSub.RequiredScopes);
-        
+
         var eventType = eventSub.EventSubType;
         var eventVersion = eventSub.EventSubVersion;
-        
+
         await SubscribeAsync(source, eventType, eventVersion, handler);
     }
 
@@ -293,41 +298,41 @@ public class EventSubClient
         ArgumentNullException.ThrowIfNull(source, nameof(source));
         ArgumentException.ThrowIfNullOrEmpty(eventName, nameof(eventName));
         ArgumentNullException.ThrowIfNull(handler, nameof(handler));
-        
+
         var tSource = source.GetType();
         var tEvent = tSource.GetEvent(eventName);
-        
+
         if (tEvent is null)
         {
             Logger.LogError("Event {EventName} not found in {SourceType}", eventName, tSource);
             return;
         }
-        
+
         if (tEvent.TryGetCustomAttribute<EventSubAttribute>(out var eventSub) is false || eventSub is null)
         {
             return;
         }
-        
+
         MissingTwitchScopeException.ThrowIfMissing(Twitch.UserScopes, eventSub.RequiredScopes);
-        
+
         var eventType = eventSub.EventSubType;
         var eventVersion = eventSub.EventSubVersion;
-        
+
         // TODO: required DELETE http method to be implemented in AsyncHttpClient and Twitchery
     }
-    
+
     [RequiresToken(TokenType.UserAccess)]
     [ApiRoute("POST", "eventsub/subscriptions", "channel:read:subscriptions", RequiredStatusCode = HttpStatusCode.Accepted)]
     public async Task SubscribeAsync(object source, string eventType, string eventVersion, Delegate eventHandler)
     {
         var sourceType = source.GetType();
-        
+
         if (typeof(IConditional).IsAssignableFrom(sourceType) is false)
         {
             Logger.LogError("Source object does not implement IConditional");
             return;
         }
-        
+
         if (sourceType.IsInterface || sourceType.IsAbstract)
         {
             Logger.LogError("Source object cannot be an interface or abstract class");
@@ -339,12 +344,12 @@ public class EventSubClient
             Logger.LogError("Failed to cast source object to IConditional");
             return;
         }
-        
+
         if (Client.IsConnected is false)
         {
             await StartAsync();
         }
-        
+
         ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
         ArgumentException.ThrowIfNullOrWhiteSpace(eventVersion);
 
@@ -359,17 +364,17 @@ public class EventSubClient
 
         var response = await Twitch.PostTwitchApiAsync<CreateEventSubSubscriptionRequestBody, CreateEventSubSubscriptionResponseBody>(
             request, typeof(EventSubClient));
-        
+
         if (response is null || response.Data.Count == 0)
         {
             Logger.LogError("Failed to subscribe to {EventKey}[v{Version}]", eventType, eventVersion);
             return;
         }
-        
+
         var resData = response.Data[0];
-        
+
         Listener.Add(resData.Id, eventHandler);
-        
+
         Logger.LogInformation("Registered for event {Key}[v{Version}]: {Status}", eventType, eventVersion, response.Data[0].Status);
     }
 
@@ -386,7 +391,7 @@ public class EventSubClient
         {
             await Task.Delay(10, token);
         }
-                
+
         return SessionId;
     }
 
@@ -394,17 +399,17 @@ public class EventSubClient
         where T : class, new()
     {
         var subId = data.Payload.Subscription.Id;
-        
+
         if (Listener.TryGetValue(subId, out var listener))
         {
             try
             {
                 data.Payload.Event.InjectTwitchery(Twitch);
-                
+
                 if (listener.Method.ReturnType == typeof(Task))
                 {
                     Logger.LogDebug("Invoking async listener delegate method {Delegate} for {SubscriptionType}", listener.Method, subscriptionType);
-                    if (listener.Method.Invoke(listener.Target, [ listener.Target, data.Payload.Event ]) is Task awaitableListenerHandler)
+                    if (listener.Method.Invoke(listener.Target, [listener.Target, data.Payload.Event]) is Task awaitableListenerHandler)
                     {
                         await awaitableListenerHandler;
                     }
@@ -418,7 +423,7 @@ public class EventSubClient
                 else
                 {
                     Logger.LogDebug("Invoking listener delegate method {Delegate} for {SubscriptionType}", listener.Method, subscriptionType);
-                    listener.Method.Invoke(listener.Target, [ listener.Target, data.Payload.Event ]);
+                    listener.Method.Invoke(listener.Target, [listener.Target, data.Payload.Event]);
                 }
             }
             catch (Exception e)

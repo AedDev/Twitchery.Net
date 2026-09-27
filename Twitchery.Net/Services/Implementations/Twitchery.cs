@@ -28,7 +28,7 @@ public class Twitchery : ITwitchery
     public string? UserClientId { get; set; }
     public string? UserAccessToken { get; set; }
     public List<string> UserScopes { get; private set; } = [];
-    
+
     public string? AppClientId { get; set; }
     public string? AppClientSecret { get; set; }
     public string? AppAccessToken { get; set; }
@@ -43,18 +43,18 @@ public class Twitchery : ITwitchery
     #endregion Internal Properties
 
     #region Services
-    
+
     private ILogger<Twitchery> Logger { get; }
-    
+
     #endregion
-    
+
     #region Private Constants
-    
+
     private const string TwitchImplicitGrantUrl = "https://id.twitch.tv/oauth2/authorize";
     private const string TwitchApiEndpoint = "https://api.twitch.tv/helix/";
-    
+
     #endregion
-    
+
     #region Indexed Properties
 
     public UsersIndex Users => new(this);
@@ -63,26 +63,27 @@ public class Twitchery : ITwitchery
     public ChannelsIndex Channels => new(this);
     public ModerationIndex Moderation => new(this);
     public PollsIndex Polls => new(this);
-    
+
     #endregion Indexed Properties
 
     #region Shorthand Properties
 
     public User? Me { get; private set; }
-    
+
     public bool HasUserToken => !string.IsNullOrWhiteSpace(UserAccessToken);
     public bool HasAppToken => !string.IsNullOrWhiteSpace(AppAccessToken);
     public bool HasAnyToken => HasUserToken || HasAppToken;
 
     #endregion Shorthand Properties
-    
+
+#pragma warning disable CS8618 // Supressed since VSCode does not detect the EventSubClient being set
     public Twitchery()
     {
         Logger = LoggerFactory.Create(config =>
         {
             config.AddConsole().SetMinimumLevel(LogLevel.Debug);
         }).CreateLogger<Twitchery>();
-        
+
         ((ITwitchery)this).EventSubClient = new(this);
     }
 
@@ -90,20 +91,21 @@ public class Twitchery : ITwitchery
     public Twitchery(ILogger<Twitchery> logger)
     {
         Logger = logger;
-        
+
         ((ITwitchery)this).EventSubClient = new(this);
     }
-    
+#pragma warning restore CS8618 // Supressed since VSCode does not detect the EventSubClient being set
+
     public string GetOAuthUrl(string redirectUri, string[] scopes, string? state = null)
     {
         var scope = string.Join("+", scopes);
-        
+
         var url = $"{TwitchImplicitGrantUrl}" +
                $"?client_id={UserClientId}" +
                $"&redirect_uri={redirectUri}" +
                $"&response_type=token" +
                $"&scope={scope}";
-        
+
         if (state is not null)
         {
             url += $"&state={state}";
@@ -111,35 +113,35 @@ public class Twitchery : ITwitchery
 
         return url;
     }
-    
+
     public async Task<bool> UserBrowserAuthAsync(string clientId, string redirectUri, params string[] scopes)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(clientId, nameof(clientId));
         ArgumentException.ThrowIfNullOrWhiteSpace(redirectUri, nameof(redirectUri));
-        
+
         if (scopes.Length == 0)
         {
             throw new ArgumentException("At least one scope is required.");
         }
-        
+
         UserClientId = clientId;
-        
+
         var state = Guid.NewGuid().ToString();
         var url = GetOAuthUrl(redirectUri, scopes, state);
-        
+
         var oauthServer = new OAuthHttpServer(redirectUri.EndsWith('/') ? redirectUri : $"{redirectUri}/", state);
-        
+
         WebTools.OpenUrl(url);
-        
+
         var timeOutCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var oauthLogin = await oauthServer.WaitForAuthentication(timeOutCancellation.Token);
-        
+
         if (oauthLogin is null)
         {
             Logger.LogError("Failed to authenticate with Twitch.");
             return false;
         }
-        
+
         UserAccessToken = oauthLogin.AccessToken;
         UserScopes = (oauthLogin.Scope?.Split('+') ?? [])
             .Select(Uri.UnescapeDataString)
@@ -148,15 +150,15 @@ public class Twitchery : ITwitchery
 
         var me = await Users.GetUsersAsync(new GetUsersRequest(), timeOutCancellation.Token);
         Me = me?.Users.FirstOrDefault();
-        
+
         return true;
     }
-    
+
     public async Task<bool> AppAuthAsync(string clientId, string clientSecret, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(clientId, nameof(clientId));
         ArgumentException.ThrowIfNullOrWhiteSpace(clientSecret, nameof(clientSecret));
-        
+
         AppClientId = clientId;
         AppClientSecret = clientSecret;
 
@@ -167,19 +169,19 @@ public class Twitchery : ITwitchery
             .SetQuery(request)
             .Build()
             .SendAsync<ClientCredentialsFlowResponse>(token);
-        
+
         if (response.Validate("https://id.twitch.tv/oauth2/validate") is false)
         {
             return false;
         }
-        
+
         if (response.Body is null)
         {
             return false;
         }
-        
+
         AppAccessToken = response.Body.AccessToken;
-        
+
         return true;
     }
 
@@ -197,26 +199,26 @@ public class Twitchery : ITwitchery
             .SetQuery(request)
             .Build()
             .SendAsync<ValidateOAuth2TokenResponse>();
-        
+
         if (response.Validate("https://id.twitch.tv/oauth2/validate") is false)
         {
             return false;
         }
-        
+
         if (response.Body is null)
         {
             return false;
         }
-        
+
         if (response.Body.ClientId != AppClientId)
         {
             Logger.LogWarning("Client ID mismatch on App Token validation.");
             return false;
         }
-        
+
         return response.Body?.ExpiresIn > 0;
     }
-    
+
     public async Task<bool> CheckUserToken()
     {
         if (string.IsNullOrWhiteSpace(UserAccessToken))
@@ -236,30 +238,30 @@ public class Twitchery : ITwitchery
         {
             return false;
         }
-        
+
         if (response.Body is null)
         {
             return false;
         }
-        
+
         if (response.Body.ClientId != UserClientId)
         {
             Logger.LogWarning("Client ID mismatch on App Token validation.");
             return false;
         }
-        
+
         return response.Body?.ExpiresIn > 0;
     }
 
     private Route GetRoute(Type callerType, string callerMemberName)
     {
         ArgumentException.ThrowIfNullOrEmpty(callerMemberName, nameof(callerMemberName));
-        
+
         if (string.IsNullOrWhiteSpace(UserClientId))
         {
             throw new ApiException("Client ID is required.");
         }
-        
+
         if (string.IsNullOrWhiteSpace(UserAccessToken))
         {
             throw new ApiException("Access Token is required.");
@@ -283,14 +285,14 @@ public class Twitchery : ITwitchery
         {
             throw new MissingAttributeException<RequiresTokenAttribute>(apiMethod);
         }
-        
+
         if (apiRoute is null)
         {
             throw new MissingAttributeException<ApiRoute>(apiMethod);
         }
 
         var route = new Route(TwitchApiEndpoint, apiRoute, apiMethod, requiredToken.Value, apiRules);
-        
+
         return route;
     }
 
@@ -304,7 +306,7 @@ public class Twitchery : ITwitchery
             {
                 throw new ApiException("User Client ID is required.");
             }
-            
+
             if (string.IsNullOrWhiteSpace(UserAccessToken))
             {
                 throw new ApiException("User Access Token is required.");
@@ -317,25 +319,25 @@ public class Twitchery : ITwitchery
             {
                 throw new ApiException("App Client ID is required.");
             }
-            
+
             if (string.IsNullOrWhiteSpace(AppClientSecret))
             {
                 throw new ApiException("App Client Secret is required.");
             }
-            
+
             if (string.IsNullOrWhiteSpace(AppAccessToken))
             {
                 throw new ApiException("App Access Token is required.");
             }
         }
-        
+
         if (route.RequiredTokenType == TokenType.Both)
         {
             if (string.IsNullOrWhiteSpace(UserClientId) && string.IsNullOrWhiteSpace(AppClientId))
             {
                 throw new ApiException("Either User or App Client ID is required.");
             }
-            
+
             if (string.IsNullOrWhiteSpace(UserAccessToken) && string.IsNullOrWhiteSpace(AppAccessToken))
             {
                 throw new ApiException("Either User or App Access Token is required.");
@@ -352,7 +354,7 @@ public class Twitchery : ITwitchery
             _ => throw new ArgumentOutOfRangeException(nameof(route.RequiredTokenType), route.RequiredTokenType, "Invalid token type.")
         };
     }
-    
+
     private List<ValidationResult> ValidateRoute(Route route, [CallerMemberName] string? callerMemberName = null)
     {
         var results = new List<ValidationResult>();
@@ -361,7 +363,7 @@ public class Twitchery : ITwitchery
         {
             results.Add(new ValidationResult($"Invalid HTTP method for route {route.ApiRoute.Path}"));
         }
-        
+
         foreach (var scope in route.ApiRoute.RequiredScopes)
         {
             if (UserScopes.Contains(scope) is false)
@@ -374,17 +376,17 @@ public class Twitchery : ITwitchery
         {
             results.Add(new ValidationResult($"Invalid API route URL: {route.ApiRoute.Path}"));
         }
-        
+
         switch (route.RequiredTokenType)
         {
             case TokenType.UserAccess when HasUserToken is false:
                 results.Add(new ValidationResult("User Access Token is required."));
                 break;
-            
+
             case TokenType.AppAccess when HasAppToken is false:
                 results.Add(new ValidationResult("App Access Token is required."));
                 break;
-            
+
             case TokenType.Both when HasAnyToken is false:
                 results.Add(new ValidationResult("User or App Access Token is required."));
                 break;
@@ -401,7 +403,7 @@ public class Twitchery : ITwitchery
     {
         ArgumentNullException.ThrowIfNull(query, nameof(query));
         ArgumentException.ThrowIfNullOrEmpty(callerMemberName, nameof(callerMemberName));
-        
+
         var route = GetRoute(callerType, callerMemberName);
 
         var validationResults = ValidateRoute(route);
@@ -409,7 +411,7 @@ public class Twitchery : ITwitchery
         {
             throw new ApiException($"Route validation failed:\n{string.Join("\n- ", validationResults)}");
         }
-        
+
         var credentials = GetCredentialsForRoute(route);
         var result = await AsyncHttpClient
             .StartGet(route.FullUrl)
@@ -418,7 +420,7 @@ public class Twitchery : ITwitchery
             .SetQuery(query)
             .Build()
             .SendAsync<TResponse>(token);
-        
+
         if (result.Validate(route.FullUrl, route.ApiRoute.RequiredStatusCode) is false)
         {
             return null;
@@ -426,7 +428,7 @@ public class Twitchery : ITwitchery
 
         return result.Body;
     }
-    
+
     public async Task<TFullResponse> GetTwitchApiAllAsync<TQuery, TResponse, TFullResponse>(TQuery? query, Type callerType, CancellationToken token = default, [CallerMemberName] string? callerMemberName = null)
         where TQuery : class, IQueryParameters, IWithPagination
         where TResponse : class, IHasPagination
@@ -434,9 +436,9 @@ public class Twitchery : ITwitchery
     {
         ArgumentNullException.ThrowIfNull(query, nameof(query));
         ArgumentException.ThrowIfNullOrEmpty(callerMemberName, nameof(callerMemberName));
-        
+
         var route = GetRoute(callerType, callerMemberName);
-        
+
         var validationResults = ValidateRoute(route);
         if (validationResults.Count != 0)
         {
@@ -451,7 +453,7 @@ public class Twitchery : ITwitchery
             {
                 pagination.After = after;
             }
-            
+
             var credentials = GetCredentialsForRoute(route);
             var result = await AsyncHttpClient
                 .StartGet(route.FullUrl)
@@ -460,27 +462,27 @@ public class Twitchery : ITwitchery
                 .SetQuery(query)
                 .Build()
                 .SendAsync<TResponse>(token);
-            
+
             if (result.Validate(route.FullUrl, route.ApiRoute.RequiredStatusCode) is false)
             {
                 return new TFullResponse();
             }
-            
+
             var response = result.Body;
-            
+
             if (response is null)
             {
                 continue;
             }
 
             responses.Add(response);
-            
+
             after = response.Pagination.Cursor;
         } while (after is not null);
-        
+
         return responses;
     }
-    
+
     public async Task<TResponse?> PostTwitchApiAsync<TQuery, TBody, TResponse>(TQuery? query, TBody? body, Type callerType, CancellationToken token = default, [CallerMemberName] string? callerMemberName = null)
         where TQuery : class, IQueryParameters
         where TBody : class
@@ -488,9 +490,9 @@ public class Twitchery : ITwitchery
     {
         ArgumentNullException.ThrowIfNull(query, nameof(query));
         ArgumentException.ThrowIfNullOrEmpty(callerMemberName, nameof(callerMemberName));
-        
+
         var route = GetRoute(callerType, callerMemberName);
-        
+
         var validationResults = ValidateRoute(route);
         if (validationResults.Count != 0)
         {
@@ -506,7 +508,7 @@ public class Twitchery : ITwitchery
             .SetBody(body)
             .Build()
             .SendAsync<TResponse>(token);
-        
+
         if (result.Validate(route.FullUrl, route.ApiRoute.RequiredStatusCode) is false)
         {
             return null;
@@ -514,15 +516,15 @@ public class Twitchery : ITwitchery
 
         return result.Body;
     }
-    
+
     public async Task<TResponse?> PostTwitchApiAsync<TBody, TResponse>(TBody? body, Type callerType, CancellationToken token = default, [CallerMemberName] string? callerMemberName = null)
         where TBody : class
         where TResponse : class
     {
         ArgumentException.ThrowIfNullOrEmpty(callerMemberName, nameof(callerMemberName));
-        
+
         var route = GetRoute(callerType, callerMemberName);
-        
+
         var validationResults = ValidateRoute(route);
         if (validationResults.Count != 0)
         {
@@ -537,7 +539,7 @@ public class Twitchery : ITwitchery
             .SetBody(body)
             .Build()
             .SendAsync<TResponse>(token);
-        
+
         if (result.Validate(route.FullUrl, route.ApiRoute.RequiredStatusCode) is false)
         {
             return null;
@@ -545,14 +547,14 @@ public class Twitchery : ITwitchery
 
         return result.Body;
     }
-    
+
     public async Task PostTwitchApiAsync<TQuery>(TQuery? query, Type callerType, CancellationToken token = default, [CallerMemberName] string? callerMemberName = null)
         where TQuery : class, IQueryParameters
     {
         ArgumentException.ThrowIfNullOrEmpty(callerMemberName, nameof(callerMemberName));
-        
+
         var route = GetRoute(callerType, callerMemberName);
-        
+
         var validationResults = ValidateRoute(route);
         if (validationResults.Count != 0)
         {
@@ -580,11 +582,11 @@ public class Twitchery : ITwitchery
         {
             twitcheryTarget.Twitch = this;
         }
-        
+
         foreach (var prop in properties)
         {
             var injectRouteData = prop.GetCustomAttribute<InjectRouteData>();
-            
+
             if (injectRouteData is null)
             {
                 continue;
@@ -600,7 +602,7 @@ public class Twitchery : ITwitchery
                 Logger.LogWarning($"Injection Data Resolve Warning: Property {prop.Name} has no declaring type.");
                 continue;
             }
-            
+
             Logger.LogDebug("Injecting data to {PropName} : {PropType} of class {ClassFullName}", prop.Name, propType.FullName, propClass.FullName);
 
             var targetMethod = sourceType
@@ -618,7 +620,7 @@ public class Twitchery : ITwitchery
                                   $"with parameter {propClass.Name}.");
                 continue;
             }
-            
+
             var instanceProperty = GetType()
                 .GetProperties()
                 .FirstOrDefault(p => p.PropertyType == sourceType);
@@ -628,9 +630,9 @@ public class Twitchery : ITwitchery
                 Logger.LogWarning("No source provided by Twitchery for requested data type {SourceType}.", sourceType.FullName);
                 continue;
             }
-            
+
             var instanceValue = instanceProperty.GetValue(this);
-            
+
             if (instanceValue is null)
             {
                 Logger.LogWarning("Injection Data Resolve Warning: Source instance {SourceType} is null.", sourceType.FullName);
@@ -640,7 +642,7 @@ public class Twitchery : ITwitchery
             var propertyTypeAsTask = typeof(Task<>).MakeGenericType(prop.PropertyType); // User => Task<User>
             var typeMatches = prop.PropertyType == targetMethod.ReturnType; // User == User
             var typeMatchesGenericTask = propertyTypeAsTask == targetMethod.ReturnType; // Task<User> == Task<User>
-            
+
             if (typeMatches is false && typeMatchesGenericTask is false)
             {
                 throw new TargetInvocationException($"Injection Data Resolve Error: " +
@@ -659,7 +661,7 @@ public class Twitchery : ITwitchery
             }
 
             var targetParams = targetMethod.GetParameters();
-            
+
             var invokationParams = new object[targetParams.Length];
             if (targetParams.Length == 2 && targetParams[1].ParameterType == typeof(CancellationToken))
             {
@@ -688,7 +690,7 @@ public class Twitchery : ITwitchery
 
             if (targetMethod.ReturnType == propertyTypeAsTask)
             {
-                var awaitableTask = (dynamic) rawResult;
+                var awaitableTask = (dynamic)rawResult;
                 var awaitedResult = await awaitableTask;
 
                 prop.SetValue(target, awaitedResult);
