@@ -278,6 +278,7 @@ public class Twitchery : ITwitchery
 
         var apiRoute = apiMethod.GetCustomAttribute<ApiRoute>();
         var apiRules = apiMethod.GetCustomAttribute<ApiRules>();
+        var isBeta = apiMethod.HasCustomAttribute<BetaAttribute>();
         var requiredToken = apiMethod.GetCustomAttribute<RequiresTokenAttribute>()?.TokenType;
 
         if (requiredToken is null)
@@ -290,7 +291,7 @@ public class Twitchery : ITwitchery
             throw new MissingAttributeException<ApiRoute>(apiMethod);
         }
 
-        var route = new Route(TwitchApiEndpoint, apiRoute, apiMethod, requiredToken.Value, apiRules);
+        var route = new Route(TwitchApiEndpoint, apiRoute, apiMethod, requiredToken.Value, isBeta, apiRules);
 
         return route;
     }
@@ -541,6 +542,11 @@ public class Twitchery : ITwitchery
 
         if (result.Validate(route.FullUrl, route.ApiRoute.RequiredStatusCode) is false)
         {
+            if (route.IsBetaRoute)
+            {
+                Logger.LogWarning("Beta route validation failed: {method} {path} - Expected status code {expected_code}, but got {actual_code}. The endpoint returned: {text_result}", route.ApiRoute.HttpMethod, route.ApiRoute.Path, route.ApiRoute.RequiredStatusCode, result.Response.StatusCode, result.RawBody);
+            }
+
             return null;
         }
 

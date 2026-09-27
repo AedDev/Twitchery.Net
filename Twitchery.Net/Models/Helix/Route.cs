@@ -11,13 +11,15 @@ public class Route
     public MethodInfo CallerMethod { get; }
     public string Endpoint { get; }
     public string FullUrl => $"{Endpoint}{ApiRoute.Path}";
-    
-    public Route(string endpoint, ApiRoute apiRoute, MethodInfo callerMethod, TokenType requiredTokenType, ApiRules? apiRules = null)
+    public bool IsBetaRoute { get; }
+
+    public Route(string endpoint, ApiRoute apiRoute, MethodInfo callerMethod, TokenType requiredTokenType, bool isBetaRoute, ApiRules? apiRules = null)
     {
         Endpoint = endpoint;
         ApiRoute = apiRoute;
         ApiRules = apiRules;
         RequiredTokenType = requiredTokenType;
         CallerMethod = callerMethod;
+        IsBetaRoute = isBetaRoute;
     }
 }
