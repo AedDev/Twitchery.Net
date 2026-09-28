@@ -5,5 +5,5 @@ namespace TwitcheryNet.Models.Helix;
 public interface IHasPagination
 {
     [JsonProperty("pagination")]
-    public Pagination Pagination { get; set; }
+    public Pagination? Pagination { get; set; }
 }

@@ -11,6 +11,7 @@ using TwitcheryNet.Http;
 using TwitcheryNet.Misc;
 using TwitcheryNet.Models.Auth.Flow;
 using TwitcheryNet.Models.Helix;
+using TwitcheryNet.Models.Helix.Analytics;
 using TwitcheryNet.Models.Helix.Users;
 using TwitcheryNet.Models.Indexer;
 using TwitcheryNet.Models.OAuth2;
@@ -477,7 +478,7 @@ public class Twitchery : ITwitchery
 
             responses.Add(response);
 
-            after = response.Pagination.Cursor;
+            after = response.Pagination?.Cursor;
         } while (after is not null);
 
         return responses;
@@ -706,4 +707,29 @@ public class Twitchery : ITwitchery
             }
         }
     }
+
+    #region Direct access API methods
+
+    [ApiRoute("GET", "analytics/extensions", "analytics:read:extensions")]
+    [RequiresToken(TokenType.UserAccess)]
+    public async Task<GetExtensionAnalyticsResponse?> GetExtensionAnalyticsAsync(GetExtensionAnalyticsRequest request, CancellationToken cancellationToken)
+    {
+        return await GetTwitchApiAsync<GetExtensionAnalyticsRequest, GetExtensionAnalyticsResponse>(request, typeof(Twitchery), cancellationToken);
+    }
+
+    [ApiRoute("GET", "analytics/extensions", "analytics:read:extensions")]
+    [RequiresToken(TokenType.UserAccess)]
+    public async Task<GetAllExtensionAnalyticsResponse> GetAllExtensionAnalyticsAsync(GetExtensionAnalyticsRequest request, CancellationToken cancellationToken)
+    {
+        return await GetTwitchApiAllAsync<GetExtensionAnalyticsRequest, GetExtensionAnalyticsResponse, GetAllExtensionAnalyticsResponse>(request, typeof(Twitchery), cancellationToken);
+    }
+
+    public async Task<List<ExtensionAnalytics>> GetAllExtensionAnalyticsDataAsync(GetExtensionAnalyticsRequest request, CancellationToken cancellationToken)
+    {
+        var data = await GetAllExtensionAnalyticsAsync(request, cancellationToken);
+
+        return data?.ExtensionAnalytics ?? [];
+    }
+
+    #endregion
 }

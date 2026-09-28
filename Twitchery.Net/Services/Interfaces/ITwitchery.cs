@@ -1,8 +1,10 @@
 using System.Runtime.CompilerServices;
 using TwitcheryNet.Models.Helix;
+using TwitcheryNet.Models.Helix.Analytics;
 using TwitcheryNet.Models.Helix.Users;
 using TwitcheryNet.Models.Indexer;
 using TwitcheryNet.Net.EventSub;
+using TwitcheryNet.Services.Implementations;
 
 namespace TwitcheryNet.Services.Interfaces;
 
@@ -56,4 +58,10 @@ public interface ITwitchery
         where TResponse : class;
 
     Task InjectDataAsync<TResponse>(TResponse target, CancellationToken token = default) where TResponse : class;
+
+    #region Direct access API methods
+
+    Task<GetExtensionAnalyticsResponse?> GetExtensionAnalyticsAsync(GetExtensionAnalyticsRequest request, CancellationToken cancellationToken = default);
+
+    #endregion
 }

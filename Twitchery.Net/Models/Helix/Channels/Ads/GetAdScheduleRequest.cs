@@ -4,7 +4,7 @@ namespace TwitcheryNet.Models.Helix.Channels.Ads;
 
 public class GetAdScheduleRequest : IQueryParameters
 {
-    [QueryParameter("broadcaster_id", true, true)]
+    [QueryParameter("broadcaster_id", true)]
     public string BroadcasterId { get; set; }
 
     public GetAdScheduleRequest(string broadcasterId)
