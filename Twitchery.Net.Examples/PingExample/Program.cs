@@ -3,7 +3,7 @@ using TwitcheryNet.Net.EventSub.EventArgs.Extensions.Channel;
 
 // Registering new applications can be done here -> https://dev.twitch.tv/console/
 
-const string myClientId = "2m4zbwa1zo9bhik7daqv1u8stpfxfa"; // Get this from your Twitch application
+const string myClientId = "2m4zbwa1zo9bhik7daqv1u8stpfxfa"; // Replace this with your actual Twitch application client id
 const string myRedirectUri = "http://localhost:8181"; // Must match the one in your Twitch application
 var myScopes = new[]
 {
