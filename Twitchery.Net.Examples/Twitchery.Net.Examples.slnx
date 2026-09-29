@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../Twitchery.Net/Twitchery.Net.csproj" />
+  <Project Path="PingExample/PingExample.csproj" />
+</Solution>
