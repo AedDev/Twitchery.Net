@@ -4,6 +4,7 @@ using TwitcheryNet.Attributes;
 using TwitcheryNet.Models.Helix;
 using TwitcheryNet.Models.Helix.Channels;
 using TwitcheryNet.Models.Helix.Channels.Ads;
+using TwitcheryNet.Models.Helix.Enumerations;
 using TwitcheryNet.Models.Helix.Users;
 using TwitcheryNet.Services.Interfaces;
 

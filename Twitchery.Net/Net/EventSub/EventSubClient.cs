@@ -9,6 +9,7 @@ using TwitcheryNet.Extensions;
 using TwitcheryNet.Misc;
 using TwitcheryNet.Models.Client;
 using TwitcheryNet.Models.Client.Messages.Welcome;
+using TwitcheryNet.Models.Helix.Enumerations;
 using TwitcheryNet.Models.Helix.EventSub.Subscriptions;
 using TwitcheryNet.Services.Interfaces;
 

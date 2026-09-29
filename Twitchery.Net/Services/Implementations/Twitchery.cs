@@ -12,6 +12,7 @@ using TwitcheryNet.Misc;
 using TwitcheryNet.Models.Auth.Flow;
 using TwitcheryNet.Models.Helix;
 using TwitcheryNet.Models.Helix.Analytics;
+using TwitcheryNet.Models.Helix.Enumerations;
 using TwitcheryNet.Models.Helix.Users;
 using TwitcheryNet.Models.Indexer;
 using TwitcheryNet.Models.OAuth2;
@@ -270,15 +271,15 @@ public class Twitchery : ITwitchery
         var apiMethod = callerType
             .GetMethods()
             .Where(m => m.Name.Equals(callerMemberName))
-            .FirstOrDefault(m => m.HasCustomAttribute<ApiRoute>());
+            .FirstOrDefault(m => m.HasCustomAttribute<ApiRouteAttribute>());
 
         if (apiMethod is null)
         {
             throw new MissingMethodException(callerType.FullName, callerMemberName);
         }
 
-        var apiRoute = apiMethod.GetCustomAttribute<ApiRoute>();
-        var apiRules = apiMethod.GetCustomAttribute<ApiRules>();
+        var apiRoute = apiMethod.GetCustomAttribute<ApiRouteAttribute>();
+        var apiRules = apiMethod.GetCustomAttribute<ApiRulesAttribute>();
         var apiBroadcasterRequirement = apiMethod.GetCustomAttribute<BroadcasterTypeAttribute>();
         var isBeta = apiMethod.HasCustomAttribute<BetaAttribute>();
         var requiredToken = apiMethod.GetCustomAttribute<RequiresTokenAttribute>()?.TokenType;
@@ -290,7 +291,7 @@ public class Twitchery : ITwitchery
 
         if (apiRoute is null)
         {
-            throw new MissingAttributeException<ApiRoute>(apiMethod);
+            throw new MissingAttributeException<ApiRouteAttribute>(apiMethod);
         }
 
         var route = new Route(TwitchApiEndpoint, apiRoute, apiMethod, requiredToken.Value, isBeta, apiBroadcasterRequirement != null ? apiBroadcasterRequirement.BroadcasterType : BroadcasterType.Normal, targetBroadcasterId, apiRules);
@@ -635,7 +636,7 @@ public class Twitchery : ITwitchery
 
         foreach (var prop in properties)
         {
-            var injectRouteData = prop.GetCustomAttribute<InjectRouteData>();
+            var injectRouteData = prop.GetCustomAttribute<InjectRouteDataAttribute>();
 
             if (injectRouteData is null)
             {

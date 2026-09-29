@@ -1,12 +1,12 @@
 namespace TwitcheryNet.Attributes;
 
 [AttributeUsage(AttributeTargets.Property)]
-public class InjectRouteData : Attribute
+public class InjectRouteDataAttribute : Attribute
 {
     public Type SourceType { get; }
     public string SourceMethodName { get; }
-    
-    public InjectRouteData(Type sourceType, string sourceMethodName)
+
+    public InjectRouteDataAttribute(Type sourceType, string sourceMethodName)
     {
         SourceType = sourceType;
         SourceMethodName = sourceMethodName;

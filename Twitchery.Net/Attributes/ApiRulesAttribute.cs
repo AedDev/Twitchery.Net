@@ -3,11 +3,11 @@ using TwitcheryNet.Models.Helix;
 namespace TwitcheryNet.Attributes;
 
 [AttributeUsage(AttributeTargets.Method)]
-public class ApiRules : Attribute
+public class ApiRulesAttribute : Attribute
 {
     public RouteRules Rules { get; }
-    
-    public ApiRules(RouteRules rules)
+
+    public ApiRulesAttribute(RouteRules rules)
     {
         Rules = rules;
     }

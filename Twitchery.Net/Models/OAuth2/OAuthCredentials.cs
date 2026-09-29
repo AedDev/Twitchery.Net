@@ -1,4 +1,4 @@
-using TwitcheryNet.Attributes;
+using TwitcheryNet.Models.Helix.Enumerations;
 
 namespace TwitcheryNet.Models.OAuth2;
 
@@ -10,7 +10,7 @@ public class OAuthCredentials
     public string AccessToken { get; set; }
     public string? RedirectUri { get; set; }
     public string[] Scopes { get; set; } = [];
-    
+
     public OAuthCredentials(string clientId, string accessToken)
     {
         Type = TokenType.UserAccess;
@@ -18,7 +18,7 @@ public class OAuthCredentials
         AccessToken = accessToken;
         ClientSecret = string.Empty;
     }
-    
+
     public OAuthCredentials(string clientId, string clientSecret, string accessToken)
     {
         Type = TokenType.AppAccess;
