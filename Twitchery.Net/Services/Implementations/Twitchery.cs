@@ -253,7 +253,7 @@ public class Twitchery : ITwitchery
         return response.Body?.ExpiresIn > 0;
     }
 
-    private Route GetRoute(Type callerType, string callerMemberName)
+    private Route GetRoute(Type callerType, string callerMemberName, string? targetBroadcasterId = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(callerMemberName, nameof(callerMemberName));
 
@@ -279,6 +279,7 @@ public class Twitchery : ITwitchery
 
         var apiRoute = apiMethod.GetCustomAttribute<ApiRoute>();
         var apiRules = apiMethod.GetCustomAttribute<ApiRules>();
+        var apiBroadcasterRequirement = apiMethod.GetCustomAttribute<BroadcasterTypeAttribute>();
         var isBeta = apiMethod.HasCustomAttribute<BetaAttribute>();
         var requiredToken = apiMethod.GetCustomAttribute<RequiresTokenAttribute>()?.TokenType;
 
@@ -292,7 +293,7 @@ public class Twitchery : ITwitchery
             throw new MissingAttributeException<ApiRoute>(apiMethod);
         }
 
-        var route = new Route(TwitchApiEndpoint, apiRoute, apiMethod, requiredToken.Value, isBeta, apiRules);
+        var route = new Route(TwitchApiEndpoint, apiRoute, apiMethod, requiredToken.Value, isBeta, apiBroadcasterRequirement != null ? apiBroadcasterRequirement.BroadcasterType : BroadcasterType.Normal, targetBroadcasterId, apiRules);
 
         return route;
     }
@@ -362,20 +363,20 @@ public class Twitchery : ITwitchery
 
         if (callerMemberName?.StartsWith(route.ApiRoute.HttpMethod, StringComparison.CurrentCultureIgnoreCase) is false)
         {
-            results.Add(new ValidationResult($"Invalid HTTP method for route {route.ApiRoute.Path}"));
+            results.Add(new ValidationResult($"Invalid HTTP method for route {route.ApiRoute.HttpMethod} {route.ApiRoute.Path}"));
         }
 
         foreach (var scope in route.ApiRoute.RequiredScopes)
         {
             if (UserScopes.Contains(scope) is false)
             {
-                results.Add(new ValidationResult($"Missing required scope {scope} on route {route.ApiRoute.Path}"));
+                results.Add(new ValidationResult($"Missing required scope {scope} on route {route.ApiRoute.HttpMethod} {route.ApiRoute.Path}"));
             }
         }
 
         if (Uri.IsWellFormedUriString(route.FullUrl, UriKind.Absolute) is false)
         {
-            results.Add(new ValidationResult($"Invalid API route URL: {route.ApiRoute.Path}"));
+            results.Add(new ValidationResult($"Invalid API route URL: {route.ApiRoute.HttpMethod} {route.ApiRoute.Path}"));
         }
 
         switch (route.RequiredTokenType)
@@ -393,9 +394,49 @@ public class Twitchery : ITwitchery
                 break;
         }
 
+        // Check if the broadcaster type requirement is being satisfied
+        ValidateBroadcasterRequirement(route, results);
+
         // TODO: Implement rules validation
 
         return results;
+    }
+
+    private void ValidateBroadcasterRequirement(Route route, List<ValidationResult> results)
+    {
+        if (route.RequiredBroadcasterType <= BroadcasterType.Normal)
+            return;
+
+        if (string.IsNullOrWhiteSpace(route.TargetBroadcasterId))
+        {
+            results.Add(new($"Route {route.ApiRoute.HttpMethod} {route.ApiRoute.Path} requires the channel to be {route.RequiredBroadcasterType}, but the route request data does not provide a target broadcaster ID, or the corresponding property is missing [{nameof(TargetBroadcasterAttribute)}]."));
+            return;
+        }
+
+        var channel = Channels[route.TargetBroadcasterId];
+        if (channel == null)
+        {
+            results.Add(new($"Route {route.ApiRoute.HttpMethod} {route.ApiRoute.Path} requires the channel to be {route.RequiredBroadcasterType}, but the channel with the broadcaster ID {route.TargetBroadcasterId} could not be fetched."));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(channel.BroadcasterLogin))
+        {
+            results.Add(new($"Route {route.ApiRoute.HttpMethod} {route.ApiRoute.Path} requires the channel to be {route.RequiredBroadcasterType}, but the login name behind the channel with the broadcaster ID {route.TargetBroadcasterId} could not be fetched."));
+            return;
+        }
+
+        var user = Users[channel.BroadcasterLogin];
+        if (user == null)
+        {
+            results.Add(new($"Route {route.ApiRoute.HttpMethod} {route.ApiRoute.Path} requires the channel to be {route.RequiredBroadcasterType}, but the user with the login name {channel.BroadcasterLogin} could not be fetched."));
+            return;
+        }
+
+        if (user.BroadcasterType < route.RequiredBroadcasterType)
+        {
+            results.Add(new($"Route {route.ApiRoute.HttpMethod} {route.ApiRoute.Path} requires the channel to be {route.RequiredBroadcasterType}, but the user {channel.BroadcasterLogin} behind the channel {channel.BroadcasterName} is only {user.BroadcasterType}."));
+        }
     }
 
     public async Task<TResponse?> GetTwitchApiAsync<TQuery, TResponse>(TQuery? query, Type callerType, CancellationToken token = default, [CallerMemberName] string? callerMemberName = null)
@@ -405,7 +446,10 @@ public class Twitchery : ITwitchery
         ArgumentNullException.ThrowIfNull(query, nameof(query));
         ArgumentException.ThrowIfNullOrEmpty(callerMemberName, nameof(callerMemberName));
 
-        var route = GetRoute(callerType, callerMemberName);
+        var targetBroadcasterIdProperty = query.GetType().GetProperties().FirstOrDefault(p => p.HasCustomAttribute<TargetBroadcasterAttribute>() && p.PropertyType == typeof(string));
+        var targetBroadcasterId = targetBroadcasterIdProperty?.GetValue(query)?.ToString();
+
+        var route = GetRoute(callerType, callerMemberName, targetBroadcasterId);
 
         var validationResults = ValidateRoute(route);
         if (validationResults.Count != 0)
@@ -614,11 +658,11 @@ public class Twitchery : ITwitchery
             var targetMethod = sourceType
                 .GetMethods()
                 .Where(m => m.Name.Equals(sourceMethodName))
-                .Where(m =>
+                .FirstOrDefault(m =>
                 {
                     var mParams = m.GetParameters();
                     return mParams.Length >= 1 && mParams[0].ParameterType == propClass;
-                }).FirstOrDefault();
+                });
 
             if (targetMethod is null)
             {

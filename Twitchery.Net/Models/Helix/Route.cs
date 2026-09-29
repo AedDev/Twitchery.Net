@@ -12,8 +12,10 @@ public class Route
     public string Endpoint { get; }
     public string FullUrl => $"{Endpoint}{ApiRoute.Path}";
     public bool IsBetaRoute { get; }
+    public BroadcasterType RequiredBroadcasterType { get; }
+    public string? TargetBroadcasterId { get; }
 
-    public Route(string endpoint, ApiRoute apiRoute, MethodInfo callerMethod, TokenType requiredTokenType, bool isBetaRoute, ApiRules? apiRules = null)
+    public Route(string endpoint, ApiRoute apiRoute, MethodInfo callerMethod, TokenType requiredTokenType, bool isBetaRoute, BroadcasterType requiredBroadcasterType, string? targetBroadcasterId = null, ApiRules? apiRules = null)
     {
         Endpoint = endpoint;
         ApiRoute = apiRoute;
@@ -21,5 +23,6 @@ public class Route
         RequiredTokenType = requiredTokenType;
         CallerMethod = callerMethod;
         IsBetaRoute = isBetaRoute;
+        RequiredBroadcasterType = requiredBroadcasterType;
     }
 }

@@ -3,7 +3,8 @@ namespace TwitcheryNet.Models.Helix;
 [Flags]
 public enum BroadcasterType
 {
-    Normal = 0,
-    Affiliate = 1,
-    Partner = 2
+    Normal = 0x00,
+    Affiliate = 0x10,
+    Partner = 0x20,
+    AffiliateOrPartner = Affiliate | Partner
 }
