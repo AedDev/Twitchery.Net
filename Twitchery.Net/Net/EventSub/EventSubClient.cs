@@ -83,6 +83,7 @@ public class EventSubClient
     {
         _lastReceived = DateTimeOffset.MinValue;
 
+        // TODO: This requires a cleaner implementation
 #pragma warning disable CS4014
         Client.StartAsync(TwitchWebSocketUrl, token: token);
 #pragma warning restore CS4014
